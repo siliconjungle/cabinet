@@ -1,5 +1,5 @@
 const isObj = data =>
-  typeof data && typeof data === 'object' && !Array.isArray(data)
+  data && typeof data === 'object' && !Array.isArray(data)
 
 export const compareShelves = (shelf, shelf2) => {
   if (shelf) {
@@ -103,7 +103,7 @@ export const diffShelves = (shelf, shelf2) => {
       }
       return {
         ...p,
-        [key]: diffShelves(shelf[0][key] || null, shelf2[0][key] || null),
+        [key]: diffShelves(shelf[0][key] ?? null, shelf2[0][key] ?? null),
       }
     }, {}),
     shelf[1]
@@ -137,7 +137,7 @@ export const mergeShelves = (shelf, shelf2) => {
     keys.reduce((p, key) => {
       return {
         ...p,
-        [key]: mergeShelves(shelf[0][key] || null, shelf2[0][key] || null),
+        [key]: mergeShelves(shelf[0][key] ?? null, shelf2[0][key] ?? null),
       }
     }, {}),
     shelf[1],
@@ -148,10 +148,9 @@ export const mergeShelves = (shelf, shelf2) => {
 // Loop through all keys
 // If key belongs to shelf then set data's version to shelf +1
 // If it doesn't, set data's version to 0
-// Perhaps a better name is createLocalChangesDiff?
 export const createLocalChangesDiff = (shelf, data) => {
   if (!shelf) {
-    return [data, 0]
+    return createShelf(data)
   }
 
   if (!isObj(data)) {
@@ -175,7 +174,7 @@ export const createLocalChangesDiff = (shelf, data) => {
     keys.reduce((p, key) => {
       return {
         ...p,
-        [key]: createLocalChangesDiff(shelf[0][key] || null, data[key] || null),
+        [key]: createLocalChangesDiff(shelf[0][key] ?? null, data[key] ?? null),
       }
     }, {}),
     shelf[1],

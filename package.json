@@ -5,7 +5,7 @@
   "description": "A key value store & subscriptions wrapping a json blob crdt (shelf).",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",
@@ -15,5 +15,9 @@
   "repository": {
     "type": "git",
     "url": "git@github.com:siliconjungle/cabinet.git"
+  },
+  "devDependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.16.8",
+    "jest": "^27.5.1"
   }
 }
