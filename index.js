@@ -60,6 +60,8 @@ export const removeSubscription = (key, callback) => {
   emitter.removeListener(key, callback)
 }
 
+export const getSubscriptionCount = (key) => emitter.listenerCount(key)
+
 export const addShelfSubscription = (key, callback) => {
   shelfEmitter.addListener(key, callback)
 }
@@ -67,3 +69,5 @@ export const addShelfSubscription = (key, callback) => {
 export const removeShelfSubscription = (key, callback) => {
   shelfEmitter.removeListener(key, callback)
 }
+
+export const getShelfSubscriptionCount = (key) => shelfEmitter.listenerCount(key)
