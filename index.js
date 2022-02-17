@@ -18,6 +18,10 @@ const store = {}
 
 export const getKeys = () => Object.keys(store)
 
+export const removeShelf = (key) => {
+  delete store[key]
+}
+
 export const getState = (key) => store[key] && getDataFromShelf(store[key]) || null
 
 export const setState = (key, state) => {
