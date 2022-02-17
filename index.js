@@ -16,6 +16,8 @@ emitter.setMaxListeners(0)
 // Should transclusion be a thing? Not sure if it's needed.
 const store = {}
 
+export const getKeys = () => Object.keys(store)
+
 export const getState = (key) => store[key] && getDataFromShelf(store[key]) || null
 
 export const setState = (key, state) => {
