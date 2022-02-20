@@ -1,7 +1,7 @@
 {
   "name": "@silicon-jungle/cabinet",
   "type": "module",
-  "version": "1.0.7",
+  "version": "1.1.0",
   "description": "A key value store & subscriptions wrapping a json blob crdt (shelf).",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "events": "^3.3.0"
+    "events": "^3.3.0",
+    "uuid": "^8.3.2"
   },
   "repository": {
     "type": "git",
