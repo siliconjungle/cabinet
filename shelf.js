@@ -1,5 +1,40 @@
-const isObj = data =>
-  data && typeof data === 'object' && !Array.isArray(data)
+const SHELF_TYPE_RANKINGS = {
+  'OBJECT': 0,
+  'ARRAY': 1,
+  'STRING': 2,
+  'NUMBER': 3,
+  'BOOLEAN': 4,
+  'NULL': 5,
+  'OTHER': 6,
+}
+
+const getShelfTypeRanking = (value) => {
+  if (value === null) return SHELF_TYPE_RANKINGS.NULL
+  if (Array.isArray(value)) return SHELF_TYPE_RANKINGS.ARRAY
+  return SHELF_TYPE_RANKINGS[typeof value] || SHELF_TYPE_RANKINGS.OTHER
+}
+
+export const compareValues = (value, value2) => {
+  const ranking = getShelfTypeRanking(value)
+  const ranking2 = getShelfTypeRanking(value2)
+
+  if (ranking < ranking2) return 1
+  if (ranking > ranking2) return -1
+  if (ranking === SHELF_TYPE_RANKINGS.OBJECT) return 0
+  // This will be replaced when a better implementation of arrays is added.
+  if (ranking === SHELF_TYPE_RANKINGS.ARRAY || ranking === SHELF_TYPE_RANKINGS.OTHER) {
+    const jsonValue = JSON.stringify(value)
+    const jsonValue2 = JSON.stringify(value2)
+    if (jsonValue === jsonValue2) {
+      return 0
+    }
+    return jsonValue < jsonValue2 ? 1 : -1
+  }
+  if (ranking === ranking2) {
+    return 0
+  }
+  return ranking < ranking2 ? 1 : -1
+}
 
 export const compareShelves = (shelf, shelf2) => {
   if (shelf) {
@@ -9,23 +44,7 @@ export const compareShelves = (shelf, shelf2) => {
       } else if (shelf2[1] > shelf[1]) {
         return -1
       }
-      if (isObj(shelf[0])) {
-        if (isObj(shelf2[0])) {
-          return 0
-        }
-        return 1
-      } else if (isObj(shelf2[0])) {
-        return -1
-      }
-      // Can something more explicit be added here?
-      // This relies too heavily on JS implementation of stringify.
-      // This makes it harder for other languages to be interoperable.
-      const shelfJson = JSON.stringify(shelf[0])
-      const shelf2Json = JSON.stringify(shelf2[0])
-      if (shelfJson === shelf2Json) {
-        return 0
-      }
-      return shelfJson < shelf2Json ? 1 : -1
+      return compareValues(shelf[0], shelf2[0])
     }
     return 1
   }
@@ -34,6 +53,9 @@ export const compareShelves = (shelf, shelf2) => {
   }
   return 0
 }
+
+const isObj = data =>
+  data && typeof data === 'object' && !Array.isArray(data)
 
 export const createShelf = (data, objectVersion = 0) => {
   return (
@@ -81,6 +103,8 @@ export const diffShelves = (shelf, shelf2) => {
     return shelf2
   }
 
+  // Checking if the two objects in their entirety are the same.
+  // Could this be delegated to the compare shelves function?
   if (JSON.stringify(shelf[0]) === JSON.stringify(shelf2[0])) {
     return [null, shelf2[1]]
   }
@@ -121,6 +145,8 @@ export const mergeShelves = (shelf, shelf2) => {
     return shelf2
   }
 
+  // Checking if the two objects in their entirety are the same.
+  // Could this be delegated to the compare shelves function?
   if (JSON.stringify(shelf[0]) === JSON.stringify(shelf2[0])) {
     return shelf2
   }
