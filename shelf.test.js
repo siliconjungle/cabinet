@@ -1,4 +1,10 @@
 import {
+  SHELF_TYPE_RANKINGS,
+  getShelfTypeRanking,
+  compareValues,
+  compareShelves,
+  // diffShelves,
+  // mergeShelves,
   createShelf,
   getDataFromShelf,
   createLocalChangesDiff,
@@ -172,3 +178,389 @@ test('Get data from shelf, nested objects', () => {
 })
 
 // Still needs tests for compareShelves, diffShelves and mergeShelves.
+test('Get shelf type ranking object', () => {
+  const value = { x: 50, y: 50 }
+  const ranking = getShelfTypeRanking(value)
+  expect(ranking).toEqual(SHELF_TYPE_RANKINGS.object)
+})
+
+test('Get shelf type ranking array', () => {
+  const value = [0, 1, 0, 1, 0]
+  const ranking = getShelfTypeRanking(value)
+  expect(ranking).toEqual(SHELF_TYPE_RANKINGS.array)
+})
+
+test('Get shelf type ranking string', () => {
+  const value = 'Hello world!'
+  const ranking = getShelfTypeRanking(value)
+  expect(ranking).toEqual(SHELF_TYPE_RANKINGS.string)
+})
+
+test('Get shelf type ranking number', () => {
+  const value = 7
+  const ranking = getShelfTypeRanking(value)
+  expect(ranking).toEqual(SHELF_TYPE_RANKINGS.number)
+})
+
+test('Get shelf type ranking boolean false', () => {
+  const value = false
+  const ranking = getShelfTypeRanking(value)
+  expect(ranking).toEqual(SHELF_TYPE_RANKINGS.boolean)
+})
+
+test('Get shelf type ranking boolean true', () => {
+  const value = true
+  const ranking = getShelfTypeRanking(value)
+  expect(ranking).toEqual(SHELF_TYPE_RANKINGS.boolean)
+})
+
+test('Get shelf type ranking null', () => {
+  const value = null
+  const ranking = getShelfTypeRanking(value)
+  expect(ranking).toEqual(SHELF_TYPE_RANKINGS.null)
+})
+
+// This can't be json stringified, so i'm not sure if other should just go unsupported.
+test('Get shelf type ranking other', () => {
+  const value = 9007199254740993n
+  const ranking = getShelfTypeRanking(value)
+  expect(ranking).toEqual(SHELF_TYPE_RANKINGS.other)
+})
+
+test('Compare two objects', () => {
+  const value = {}
+  const value2 = {}
+  const order = compareValues(value, value2)
+  expect(order).toEqual(0)
+})
+
+test('Compare object and array', () => {
+  const value = {}
+  const value2 = []
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare array and object', () => {
+  const value = []
+  const value2 = {}
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare array and array', () => {
+  const value = []
+  const value2 = []
+  const order = compareValues(value, value2)
+  expect(order).toEqual(0)
+})
+
+test('Compare object and string', () => {
+  const value = {}
+  const value2 = ''
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare string and object', () => {
+  const value = ''
+  const value2 = {}
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare string and string', () => {
+  const value = ''
+  const value2 = ''
+  const order = compareValues(value, value2)
+  expect(order).toEqual(0)
+})
+
+test('Compare array and string', () => {
+  const value = []
+  const value2 = ''
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare string and array', () => {
+  const value = ''
+  const value2 = []
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare object and number', () => {
+  const value = {}
+  const value2 = 0
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare number and object', () => {
+  const value = 0
+  const value2 = {}
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare number and number', () => {
+  const value = 0
+  const value2 = 0
+  const order = compareValues(value, value2)
+  expect(order).toEqual(0)
+})
+
+test('Compare array and number', () => {
+  const value = []
+  const value2 = 0
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare number and array', () => {
+  const value = 0
+  const value2 = []
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare string and number', () => {
+  const value = ''
+  const value2 = 0
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare number and string', () => {
+  const value = 0
+  const value2 = ''
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare object and boolean', () => {
+  const value = {}
+  const value2 = false
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare boolean and object', () => {
+  const value = false
+  const value2 = {}
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare boolean and boolean', () => {
+  const value = false
+  const value2 = false
+  const order = compareValues(value, value2)
+  expect(order).toEqual(0)
+})
+
+test('Compare array and boolean', () => {
+  const value = []
+  const value2 = false
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare boolean and array', () => {
+  const value = false
+  const value2 = []
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare string and boolean', () => {
+  const value = ''
+  const value2 = false
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare boolean and string', () => {
+  const value = false
+  const value2 = ''
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare number and boolean', () => {
+  const value = 0
+  const value2 = false
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare boolean and number', () => {
+  const value = false
+  const value2 = 0
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare object and null', () => {
+  const value = {}
+  const value2 = null
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare null and object', () => {
+  const value = null
+  const value2 = {}
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare null and null', () => {
+  const value = null
+  const value2 = null
+  const order = compareValues(value, value2)
+  expect(order).toEqual(0)
+})
+
+test('Compare array and null', () => {
+  const value = []
+  const value2 = null
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare null and array', () => {
+  const value = null
+  const value2 = []
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare string and null', () => {
+  const value = ''
+  const value2 = null
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare null and string', () => {
+  const value = null
+  const value2 = ''
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare number and null', () => {
+  const value = 0
+  const value2 = null
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare null and number', () => {
+  const value = null
+  const value2 = 0
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare boolean and null', () => {
+  const value = false
+  const value2 = null
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare null and boolean', () => {
+  const value = null
+  const value2 = false
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare string apple and pie', () => {
+  const value = 'apple'
+  const value2 = 'pie'
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare string pie and apple', () => {
+  const value = 'pie'
+  const value2 = 'apple'
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare number 2 and 5', () => {
+  const value = 2
+  const value2 = 5
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare number 5 and 2', () => {
+  const value = 5
+  const value2 = 2
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare boolean true and false', () => {
+  const value = false
+  const value2 = true
+  const order = compareValues(value, value2)
+  expect(order).toEqual(1)
+})
+
+test('Compare boolean false and true', () => {
+  const value = true
+  const value2 = false
+  const order = compareValues(value, value2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare shelves, both null', () => {
+  const shelf = null
+  const shelf2 = null
+  const order = compareShelves(shelf, shelf2)
+  expect(order).toEqual(0)
+})
+
+test('Compare shelves, non null and null', () => {
+  const shelf = [0, 0]
+  const shelf2 = null
+  const order = compareShelves(shelf, shelf2)
+  expect(order).toEqual(1)
+})
+
+test('Compare shelves, null and non null', () => {
+  const shelf = null
+  const shelf2 = [0, 0]
+  const order = compareShelves(shelf, shelf2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare shelves, version 0 and 1', () => {
+  const shelf = [0, 1]
+  const shelf2 = [5, 0]
+  const order = compareShelves(shelf, shelf2)
+  expect(order).toEqual(1)
+})
+
+test('Compare shelves, version 0 and 1', () => {
+  const shelf = [0, 0]
+  const shelf2 = [5, 1]
+  const order = compareShelves(shelf, shelf2)
+  expect(order).toEqual(-1)
+})
+
+test('Compare shelves, version 0 and 0', () => {
+  const shelf = [{}, 0]
+  const shelf2 = [{}, 0]
+  const order = compareShelves(shelf, shelf2)
+  expect(order).toEqual(0)
+})
+
+// Requires tests for diff and merge

@@ -1,17 +1,17 @@
-const SHELF_TYPE_RANKINGS = {
-  'OBJECT': 0,
-  'ARRAY': 1,
-  'STRING': 2,
-  'NUMBER': 3,
-  'BOOLEAN': 4,
-  'NULL': 5,
-  'OTHER': 6,
+export const SHELF_TYPE_RANKINGS = {
+  'object': 0,
+  'array': 1,
+  'string': 2,
+  'number': 3,
+  'boolean': 4,
+  'null': 5,
+  'other': 6,
 }
 
-const getShelfTypeRanking = (value) => {
-  if (value === null) return SHELF_TYPE_RANKINGS.NULL
-  if (Array.isArray(value)) return SHELF_TYPE_RANKINGS.ARRAY
-  return SHELF_TYPE_RANKINGS[typeof value] || SHELF_TYPE_RANKINGS.OTHER
+export const getShelfTypeRanking = (value) => {
+  if (value === null) return SHELF_TYPE_RANKINGS.null
+  if (Array.isArray(value)) return SHELF_TYPE_RANKINGS.array
+  return SHELF_TYPE_RANKINGS[typeof value] ?? SHELF_TYPE_RANKINGS.other
 }
 
 export const compareValues = (value, value2) => {
@@ -20,9 +20,9 @@ export const compareValues = (value, value2) => {
 
   if (ranking < ranking2) return 1
   if (ranking > ranking2) return -1
-  if (ranking === SHELF_TYPE_RANKINGS.OBJECT) return 0
+  if (ranking === SHELF_TYPE_RANKINGS.object) return 0
   // This will be replaced when a better implementation of arrays is added.
-  if (ranking === SHELF_TYPE_RANKINGS.ARRAY || ranking === SHELF_TYPE_RANKINGS.OTHER) {
+  if (ranking === SHELF_TYPE_RANKINGS.array || ranking === SHELF_TYPE_RANKINGS.other) {
     const jsonValue = JSON.stringify(value)
     const jsonValue2 = JSON.stringify(value2)
     if (jsonValue === jsonValue2) {
@@ -30,10 +30,10 @@ export const compareValues = (value, value2) => {
     }
     return jsonValue < jsonValue2 ? 1 : -1
   }
-  if (ranking === ranking2) {
+  if (value === value2) {
     return 0
   }
-  return ranking < ranking2 ? 1 : -1
+  return value < value2 ? 1 : -1
 }
 
 export const compareShelves = (shelf, shelf2) => {
@@ -41,7 +41,7 @@ export const compareShelves = (shelf, shelf2) => {
     if (shelf2) {
       if (shelf[1] > shelf2[1]) {
         return 1
-      } else if (shelf2[1] > shelf[1]) {
+      } else if (shelf[1] < shelf2[1]) {
         return -1
       }
       return compareValues(shelf[0], shelf2[0])
