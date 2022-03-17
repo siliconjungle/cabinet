@@ -6,42 +6,58 @@ import {
   applyOps,
 } from './shelf-op.js'
 
-function CabinetOp () {
+// Repository on the client would be a wrapper around local storage
+// On the server it would be hooking into a database.
+function CabinetOp (repository) {
   this.emitter = new EventEmitter()
   this.emitter.setMaxListeners(0)
   this.shelfEmitter = new EventEmitter()
   this.shelfEmitter.setMaxListeners(0)
+  this.repository = repository
   this.store = {}
 }
 
-CabinetOp.prototype.getKeys = function() {
+CabinetOp.prototype.getSubscribedKeys = function() {
   return Object.keys(this.store)
 }
 
-CabinetOp.prototype.removeShelf = function(key) {
+CabinetOp.prototype.getKeys = async function() {
+  return (await this.repository.getKeys())
+}
+
+CabinetOp.prototype.removeShelfCache = function(key) {
   delete this.store[key]
 }
 
-CabinetOp.prototype.getState = function(key) {
-  return this.store[key]?.value || null
+CabinetOp.prototype.removeShelf = async function(key) {
+  delete this.store[key]
+  await this.repository.removeShelf(key)
+}
+
+CabinetOp.prototype.getState = async function(key) {
+  return this.store[key]?.value || (await this.repository.getShelf(key).value) || null
 }
 
 CabinetOp.prototype.setState = function (key, state) {
-  const shelf = this.store[key]
-  if (shelf) {
+  if (this.store[key]) {
+    const shelf = this.store[key]
     const localChanges = getLocalChanges(shelf.value, state, shelf.versions)
-    this.setShelf(key, applyOps(shelf, localChanges))
+    const appliedOps = applyOps(shelf, localChanges)
+    this.setShelf(key, appliedOps)
   } else {
-    this.setShelf(key, createShelf(state))
+    const shelf = createShelf(state)
+    this.setShelf(key, shelf)
   }
 }
 
-CabinetOp.prototype.getShelf = function(key) {
-  return this.store[key] || null
+CabinetOp.prototype.getShelf = async function(key) {
+  return this.store[key] || (await this.repository.getShelf(key).value) || null
 }
 
 CabinetOp.prototype.setShelf = function(key, shelf) {
   this.store[key] = shelf
+  // Currently not handling success / failure.
+  this.repository.setShelfByKey(key, shelf)
 
   this.shelfEmitter.emit(
     key,
@@ -69,12 +85,25 @@ CabinetOp.prototype.applyOps = function(key, ops) {
   }
 }
 
+CabinetOp.prototype.initShelf = function(key) {
+  this.repository.getShelfByKey(key).then(shelf => {
+    // Detect differences between current shelf and shelf being returned
+    this.setShelf(shelf)
+  })
+}
+
 CabinetOp.prototype.addSubscription = function(key, callback) {
+  if (!this.store[key]) {
+    this.initShelf(key)
+  }
   this.emitter.addListener(key, callback)
 }
 
 CabinetOp.prototype.removeSubscription = function(key, callback) {
   this.emitter.removeListener(key, callback)
+  if (this.emitter.listenerCount(key) === 0 && this.shelfEmitter.listenerCount(key) === 0) {
+    this.removeShelfCache(key)
+  }
 }
 
 CabinetOp.prototype.SubscriptionCount = function(key) {
@@ -82,11 +111,17 @@ CabinetOp.prototype.SubscriptionCount = function(key) {
 }
 
 CabinetOp.prototype.addShelfSubscription = function(key, callback) {
+  if (!this.store[key]) {
+    this.initShelf(key)
+  }
   this.shelfEmitter.addListener(key, callback)
 }
 
 CabinetOp.prototype.removeShelfSubscription = function(key, callback) {
   this.shelfEmitter.removeListener(key, callback)
+  if (this.emitter.listenerCount(key) === 0 && this.shelfEmitter.listenerCount(key) === 0) {
+    this.removeShelfCache(key)
+  }
 }
 
 CabinetOp.prototype.getShelfSubscriptionCount = function(key) {
