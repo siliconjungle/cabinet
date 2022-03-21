@@ -141,11 +141,13 @@ export const createOp = {
 }
 
 export const createShelf = (value) => {
-  return {
-    value: JSON.parse(JSON.stringify(value)),
-    versions: deepCopyReplaceValues(value, 0),
+  const shelf = {
+    value: null,
+    versions: 0,
     history: [],
   }
+  const ops = getLocalChanges(shelf.value, value, 0)
+  return applyOps(shelf, ops)
 }
 
 // Maybe I should mutate the state *shrugs*
