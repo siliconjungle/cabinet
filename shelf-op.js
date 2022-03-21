@@ -7,15 +7,18 @@ const isObj = data =>
 
 const deepCopy = (data) => JSON.parse(JSON.stringify(data))
 
+// Objects are the only things which need to be an array
+// How do I know if it's an object or an actual array?
 const deepCopyReplaceValues = (data, replacement) => {
   return (
-    isObj(data) ?
-    Object.entries(data).reduce((p, [k, v]) => {
-      return ({
-        ...p,
-        [k]: isObj(v) ? deepCopyReplaceValues(v, replacement) : replacement,
-      })
-    }, {}) :
+    isObj(data) ? [
+      Object.entries(data).reduce((p, [k, v]) => {
+        return ({
+          ...p,
+          [k]: isObj(v) ? [deepCopyReplaceValues(v, replacement), replacement] : replacement,
+        })
+      }, {}), replacement
+    ] :
     replacement
   )
 }
@@ -31,6 +34,20 @@ const getDeepValueByKey = (data, key) => {
   return layer
 }
 
+// If you want to get the version of something that isn't a leaf... what then?
+// Currently this is giving all the children, not just that specific one
+const getDeepVersionByKey = (data, key) => {
+  if (key.length === 0) {
+    return data
+  }
+  let layer = data
+  key.forEach((k) => {
+    // Second value is the version, first is the object.
+    layer = Array.isArray(layer) ? layer[0][k]: layer[k]
+  })
+  return Array.isArray(layer) ? layer[1] : layer
+}
+
 const setDeepValueByKey = (data, key, value) => {
   if (key.length === 0) {
     return value
@@ -40,6 +57,24 @@ const setDeepValueByKey = (data, key, value) => {
     layer = layer[key[i]]
   }
   layer[key[key.length - 1]] = value
+  return data
+}
+
+const setDeepVersionByKey = (data, key, version) => {
+  if (key.length === 0) {
+    return version
+  }
+  let layer = data
+  for (let i = 0; i < key.length - 1; i++) {
+    layer = Array.isArray(layer) ? layer[0][i] : layer[i]
+  }
+
+  if (Array.isArray(layer)) {
+    layer[0][key[key.length - 1]] = version
+  } else {
+    layer[key[key.length - 1]] = version
+  }
+
   return data
 }
 
@@ -82,16 +117,16 @@ export const compareShelfValues = (value, value2) => {
 }
 
 const applySetOp = (shelf, setOp) => {
-  shelf.versions = setDeepValueByKey(shelf.versions, setOp.key, setOp.version)
+  shelf.versions = setDeepVersionByKey(shelf.versions, setOp.key, setOp.version)
   shelf.value = setDeepValueByKey(shelf.value, setOp.key, setOp.value)
 }
 
 const shouldApplySetOp = (shelf, setOp) => {
-  const shelfVersion = getDeepValueByKey(shelf.versions, setOp.key)
+  const shelfVersion = getDeepVersionByKey(shelf.versions, setOp.key)
   if (shelfVersion < setOp.version) {
     return true
   } else if (shelfVersion === setOp.version) {
-    const shelfValue = getDeepValueByKey(shelf, setOp.key)
+    const shelfValue = getDeepValueByKey(shelf.value, setOp.key)
     const shelfOrder = compareShelfValues(shelfValue, setOp.value)
     if (shelfOrder === 1) {
       return true
@@ -141,7 +176,7 @@ export const getLocalChanges = (data, data2, versions, key = [], ops = []) => {
       createOp.set(
         key,
         data2,
-        getDeepValueByKey(versions, key) + 1
+        getDeepVersionByKey(versions, key) + 1
       )
     )
     return ops
@@ -191,3 +226,10 @@ const localChangeOps = getLocalChanges(shelf3.value, shelfData, shelf3.versions)
 console.log('_LOCAL_CHANGES_OPS_', localChangeOps)
 
 console.log('_APPLIED_OPS_', applyOps(shelf3, localChangeOps))
+
+const shelf4 = createShelf(['hello', 'world'])
+console.log('_SHELF_4_', shelf4)
+const setOp4 = createOp.set([], ['world'], 1)
+console.log('_SET_OP_4_', setOp4)
+const shelf4Modified = applyOp(shelf4, setOp4)
+console.log('_SHELF_4_MODIFIED_', shelf4Modified)
