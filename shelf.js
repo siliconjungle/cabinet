@@ -150,6 +150,7 @@ export const createOp = {
   set: (key, value, version) => ({ key, type: OPERATIONS.SET, value, version }),
 }
 
+// In order to handshake properly you need to store a uuid.
 export const createShelf = (value) => {
   const shelf = {
     value: null,
@@ -168,7 +169,6 @@ export const applyOp = (shelf, op) => {
   if (op.type === OPERATIONS.SET) {
     if (shouldApplySetOp(shelfCopy, op)) {
       applySetOp(shelfCopy, op)
-    } else {
     }
   }
 

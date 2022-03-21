@@ -35,7 +35,7 @@ Index.prototype.removeShelf = async function(key) {
 }
 
 Index.prototype.getState = async function(key) {
-  return this.store[key]?.value || (await this.repository.getShelf(key).value) || null
+  return this.store[key]?.value || (await this.repository.getShelfByKey(key).value) || null
 }
 
 Index.prototype.setState = function (key, state) {
@@ -51,11 +51,12 @@ Index.prototype.setState = function (key, state) {
 }
 
 Index.prototype.getShelf = async function(key) {
-  return this.store[key] || (await this.repository.getShelf(key).value) || null
+  return this.store[key] || (await this.repository.getShelfByKey(key)) || null
 }
 
 Index.prototype.setShelf = function(key, shelf) {
   this.store[key] = shelf
+
   // Currently not handling success / failure.
   this.repository.setShelfByKey(key, shelf)
 
