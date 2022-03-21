@@ -1,3 +1,90 @@
+const OPERATIONS = {
+  SET: 'set',
+}
+
+const isObj = data =>
+  data && typeof data === 'object' && !Array.isArray(data)
+
+const deepCopy = (data) => JSON.parse(JSON.stringify(data))
+
+const deepCopyReplaceValues = (data, replacement) => {
+  return (
+    isObj(data) ? [
+      Object.entries(data).reduce((p, [k, v]) => {
+        return ({
+          ...p,
+          [k]: isObj(v) ? [deepCopyReplaceValues(v, replacement), replacement] : replacement,
+        })
+      }, {}), replacement
+    ] :
+    replacement
+  )
+}
+
+// Intentional usage of undefined over null as shelves use nulls to represent the data not existing.
+const getDeepValueByKey = (data, key) => {
+  if (key.length === 0) {
+    return data
+  }
+  if (data === null) {
+    return undefined
+  }
+  let layer = data
+  for (let i = 0; i < key.length - 1; i++) {
+    layer = Array.isArray(layer) ? layer[0][key[i]]: layer[key[i]]
+    if (layer === null || layer === undefined) {
+      return undefined
+    }
+  }
+
+  layer = layer[key[key.length - 1]]
+
+  return layer
+}
+
+// This should have something added where if it can't find it, it returns -1.
+const getDeepVersionByKey = (versions, key) => {
+  if (key.length === 0) {
+    return Array.isArray(versions) ? versions[1] : versions
+  }
+  let layer = versions
+  key.forEach((k) => {
+    // Second value is the version, first is the object.
+    layer = Array.isArray(layer) ? layer[0][k]: layer[k]
+  })
+  return Array.isArray(layer) ? layer[1] : layer
+}
+
+const setDeepValueByKey = (data, key, value) => {
+  if (key.length === 0) {
+    return value
+  }
+  let layer = data
+  for (let i = 0; i < key.length - 1; i++) {
+    layer = layer[key[i]]
+  }
+  layer[key[key.length - 1]] = value
+  return data
+}
+
+const setDeepVersionByKey = (versions, key, version, isObj) => {
+  if (key.length === 0) {
+    return isObj ? [{}, version] : version
+  }
+  let layer = versions
+  for (let i = 0; i < key.length - 1; i++) {
+    layer = Array.isArray(layer) ? layer[0][i] : layer[i]
+  }
+
+  if (Array.isArray(layer)) {
+    layer[0][key[key.length - 1]] = isObj ? [{}, version] : version
+  } else {
+    layer[key[key.length - 1]] = isObj ? [{}, version] : version
+  }
+
+  return versions
+}
+
 export const SHELF_TYPE_RANKINGS = {
   'object': 0,
   'array': 1,
@@ -14,7 +101,7 @@ export const getShelfTypeRanking = (value) => {
   return SHELF_TYPE_RANKINGS[typeof value] ?? SHELF_TYPE_RANKINGS.other
 }
 
-export const compareValues = (value, value2) => {
+export const compareShelfValues = (value, value2) => {
   const ranking = getShelfTypeRanking(value)
   const ranking2 = getShelfTypeRanking(value2)
 
@@ -36,173 +123,129 @@ export const compareValues = (value, value2) => {
   return value < value2 ? 1 : -1
 }
 
-export const compareShelves = (shelf, shelf2) => {
-  if (shelf) {
-    if (shelf2) {
-      if (shelf[1] > shelf2[1]) {
-        return 1
-      } else if (shelf[1] < shelf2[1]) {
-        return -1
-      }
-      return compareValues(shelf[0], shelf2[0])
+const applySetOp = (shelf, setOp) => {
+  shelf.versions = setDeepVersionByKey(shelf.versions, setOp.key, setOp.version, isObj(setOp.value))
+  shelf.value = setDeepValueByKey(shelf.value, setOp.key, setOp.value)
+}
+
+const shouldApplySetOp = (shelf, setOp) => {
+  const shelfValue = getDeepValueByKey(shelf.value, setOp.key)
+  if (shelfValue === undefined) {
+    return true
+  }
+  const shelfVersion = getDeepVersionByKey(shelf.versions, setOp.key)
+  if (shelfVersion < setOp.version) {
+    return true
+  } else if (shelfVersion === setOp.version) {
+    const shelfOrder = compareShelfValues(shelfValue, setOp.value)
+    if (shelfOrder === 1) {
+      return true
     }
-    return 1
   }
-  if (shelf2) {
-    return -1
-  }
-  return 0
+
+  return false
 }
 
-const isObj = data =>
-  data && typeof data === 'object' && !Array.isArray(data)
-
-export const createShelf = (data, objectVersion = 0) => {
-  return (
-    [
-      isObj(data) ?
-        Object.entries(data).reduce((p, [k, v]) => {
-          return ({
-            ...p,
-            [k]: isObj(v) ? createShelf(v) : [v, 0],
-          })
-        }, {}) :
-        data,
-      objectVersion,
-    ]
-  )
+export const createOp = {
+  set: (key, value, version) => ({ key, type: OPERATIONS.SET, value, version }),
 }
 
-export const getDataFromShelf = shelf => {
-  return isObj(shelf[0]) ? (
-    Object.entries(shelf[0]).reduce((p, [k, v]) => {
-      if (v[0] === null) {
-        return {
-          ...p,
-        }
-      }
-      return {
-        ...p,
-        [k]: isObj(v[0]) ? getDataFromShelf(v) : v[0],
-      }
-    }, {})
-  ) : shelf[0]
+export const createShelf = (value) => {
+  const shelf = {
+    value: null,
+    versions: 0,
+    history: [],
+  }
+  const ops = getLocalChanges(shelf.value, value, 0)
+  return applyOps(shelf, ops)
 }
 
-// This diff creates a shelf that contains the changes which would be applied for a merge.
-export const diffShelves = (shelf, shelf2) => {
-  // Only return fields that belong to 2
-  // Or that belong to 1 and don't belong to 2
-  if (!shelf && !shelf2) {
-    return null
-  }
-  const shelfOrder = compareShelves(shelf, shelf2)
-  if (shelfOrder === 1) {
-    return null
-  } else if (shelfOrder === -1) {
-    return shelf2
+// Maybe I should mutate the state *shrugs*
+export const applyOp = (shelf, op) => {
+  const shelfCopy = deepCopy(shelf)
+  shelfCopy.history.push(op)
+
+  if (op.type === OPERATIONS.SET) {
+    if (shouldApplySetOp(shelfCopy, op)) {
+      applySetOp(shelfCopy, op)
+    } else {
+    }
   }
 
-  // Checking if the two objects in their entirety are the same.
-  // Could this be delegated to the compare shelves function?
-  if (JSON.stringify(shelf[0]) === JSON.stringify(shelf2[0])) {
-    return [null, shelf2[1]]
-  }
-
-  const keys = [
-    ...new Set(
-      [
-        ...Object.keys(shelf[0]),
-        ...Object.keys(shelf2[0])
-      ]
-    )
-  ]
-  return [
-    keys.reduce((p, key) => {
-      const shelfOrder2 = compareShelves(shelf[0][key], shelf2[0][key])
-      if (shelfOrder2 === 1 || JSON.stringify(shelf[0][key]) === JSON.stringify(shelf2[0][key])) {
-        return {
-          ...p,
-        }
-      }
-      return {
-        ...p,
-        [key]: diffShelves(shelf[0][key] ?? null, shelf2[0][key] ?? null),
-      }
-    }, {}),
-    shelf[1]
-  ]
+  return shelfCopy
 }
 
-export const mergeShelves = (shelf, shelf2) => {
-  if (!shelf && !shelf2) {
-    return null
-  }
-  const shelfOrder = compareShelves(shelf, shelf2)
-  if (shelfOrder === 1) {
-    return shelf
-  } else if (shelfOrder === -1) {
-    return shelf2
-  }
-
-  // Checking if the two objects in their entirety are the same.
-  // Could this be delegated to the compare shelves function?
-  if (JSON.stringify(shelf[0]) === JSON.stringify(shelf2[0])) {
-    return shelf2
-  }
-
-  const keys = [
-    ...new Set(
-      [
-        ...Object.keys(shelf[0]),
-        ...Object.keys(shelf2[0]),
-      ]
-    )
-  ]
-  return [
-    keys.reduce((p, key) => {
-      return {
-        ...p,
-        [key]: mergeShelves(shelf[0][key] ?? null, shelf2[0][key] ?? null),
-      }
-    }, {}),
-    shelf[1],
-  ]
+export const applyOps = (shelf, ops) => {
+  let currentShelf = shelf
+  ops.forEach(op => {
+    currentShelf = applyOp(currentShelf, op)
+  })
+  return currentShelf
 }
 
-// Apply local changes
-// Loop through all keys
-// If key belongs to shelf then set data's version to shelf +1
-// If it doesn't, set data's version to 0
-export const createLocalChangesDiff = (shelf, data) => {
-  if (!shelf) {
-    return createShelf(data)
-  }
-
+const createOpsFromData = (data, version = 1, key = [], ops = []) => {
   if (!isObj(data)) {
-    return shelf[0] === data ? [data, shelf[1]] : [data, shelf[1] + 1]
+    ops.push(
+      createOp.set(
+        key,
+        data,
+        version,
+      )
+    )
+    return ops
   }
 
-  if (!isObj(shelf[0])) {
-    return createShelf(data, shelf[1] + 1)
-  }
+  ops.push(
+    createOp.set(
+      key,
+      {},
+      version,
+    )
+  )
 
   const keys = [
     ...new Set(
       [
-        ...Object.keys(shelf[0]),
         ...Object.keys(data),
       ]
     )
   ]
 
-  return [
-    keys.reduce((p, key) => {
-      return {
-        ...p,
-        [key]: createLocalChangesDiff(shelf[0][key] ?? null, data[key] ?? null),
-      }
-    }, {}),
-    shelf[1],
+  keys.forEach(k => {
+    createOpsFromData(data[k] ?? null, version, [...key, k], ops)
+  })
+
+  return ops
+}
+
+export const getLocalChanges = (data, data2, versions, key = [], ops = []) => {
+  if (!data) {
+    ops.push(...createOpsFromData(data2, 1, key))
+    return ops
+  }
+  if (!(isObj(data) && isObj(data2))) {
+    ops.push(
+      createOp.set(
+        key,
+        data2,
+        getDeepVersionByKey(versions, key) + 1
+      )
+    )
+    return ops
+  }
+
+  const keys = [
+    ...new Set(
+      [
+        ...Object.keys(data),
+        ...Object.keys(data2),
+      ]
+    )
   ]
+
+  keys.forEach(k => {
+    getLocalChanges(data[k] ?? null, data2[k] ?? null, versions, [...key, k], ops)
+  })
+
+  return ops
 }

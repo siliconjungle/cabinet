@@ -4,4 +4,4 @@ A key value store & subscriptions wrapping a json blob crdt (shelf).
 Based on the work here:
 https://github.com/dglittle/shelf
 
-A prototype operation based shelf is shown in shelf-op.js.
+Expanded to include more robust type checking and splits the shelf out into value, versions and history.

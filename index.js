@@ -1,126 +1,131 @@
 import EventEmitter from 'events'
-import { v4 as uuidv4 } from 'uuid'
 import {
   createShelf,
-  getDataFromShelf,
-  mergeShelves,
-  createLocalChangesDiff,
+  getLocalChanges,
+  applyOp,
+  applyOps,
 } from './shelf.js'
 
-function Cabinet() {
+// Repository on the client would be a wrapper around local storage
+// On the server it would be hooking into a database.
+function Index (repository) {
   this.emitter = new EventEmitter()
   this.emitter.setMaxListeners(0)
   this.shelfEmitter = new EventEmitter()
   this.shelfEmitter.setMaxListeners(0)
+  this.repository = repository
   this.store = {}
-  this.versions = {}
 }
 
-Cabinet.prototype.getKeys = function() {
+Index.prototype.getSubscribedKeys = function() {
   return Object.keys(this.store)
 }
 
-Cabinet.prototype.getVersionsByKey = function(key) {
-  return Object.values(this.versions[key] || {})
+Index.prototype.getKeys = async function() {
+  return (await this.repository.getKeys())
 }
 
-Cabinet.prototype.addVersionByKey = function(key, version) {
-  if (this.versions[key] === undefined) {
-    this.versions[key] = []
-  }
-  this.versions[key].push(version)
-}
-
-Cabinet.prototype.keyIncludesVersion = function(key, version) {
-  return this.versions[key]?.includes(version)
-}
-
-Cabinet.prototype.getLatestVersionByKey = function(key) {
-  return this.versions[key]?.[this.versions[key].length - 1] || null
-}
-
-Cabinet.prototype.removeShelf = function(key) {
+Index.prototype.removeShelfCache = function(key) {
   delete this.store[key]
-  delete this.versions[key]
 }
 
-Cabinet.prototype.getState = function(key) {
-  return this.store[key] && getDataFromShelf(this.store[key]) || null
+Index.prototype.removeShelf = async function(key) {
+  delete this.store[key]
+  await this.repository.removeShelf(key)
 }
 
-Cabinet.prototype.setState = function (key, state) {
-  this.store[key] = this.store[key] ?
-    mergeShelves(this.store[key], createLocalChangesDiff(this.store[key], state)) :
-    createShelf(state)
+Index.prototype.getState = async function(key) {
+  return this.store[key]?.value || (await this.repository.getShelf(key).value) || null
+}
 
-  const version = uuidv4()
-  this.addVersionByKey(key, version)
+Index.prototype.setState = function (key, state) {
+  if (this.store[key]) {
+    const shelf = this.store[key]
+    const localChanges = getLocalChanges(shelf.value, state, shelf.versions)
+    const appliedOps = applyOps(shelf, localChanges)
+    this.setShelf(key, appliedOps)
+  } else {
+    const shelf = createShelf(state)
+    this.setShelf(key, shelf)
+  }
+}
+
+Index.prototype.getShelf = async function(key) {
+  return this.store[key] || (await this.repository.getShelf(key).value) || null
+}
+
+Index.prototype.setShelf = function(key, shelf) {
+  this.store[key] = shelf
+  // Currently not handling success / failure.
+  this.repository.setShelfByKey(key, shelf)
 
   this.shelfEmitter.emit(
     key,
     key,
     this.store[key],
-    version,
   )
   if (this.emitter.listenerCount(key) > 0) {
     this.emitter.emit(
       key,
       key,
       this.getState(key),
-      version,
     )
   }
 }
 
-Cabinet.prototype.getShelf = function(key) {
-  return this.store[key] || null
-}
-
-Cabinet.prototype.setShelf = function(key, shelf, version) {
-  if (this.keyIncludesVersion(key, version)) {
-    return
-  }
-
-  this.store[key] = this.store[key] ? mergeShelves(this.store[key], shelf) : shelf
-  this.addVersionByKey(key, version)
-  this.shelfEmitter.emit(
-    key,
-    key,
-    this.store[key],
-    version,
-  )
-  if (this.emitter.listenerCount(key) > 0) {
-    this.emitter.emit(
-      key,
-      key,
-      this.getState(key),
-      version,
-    )
+Index.prototype.applyOp = function(key, op) {
+  if (this.store[key]) {
+    this.setShelf(key, applyOp(this.store[key], op))
   }
 }
 
-Cabinet.prototype.addSubscription = function(key, callback) {
+Index.prototype.applyOps = function(key, ops) {
+  if (this.store[key]) {
+    this.setShelf(key, applyOps(this.store[key], ops))
+  }
+}
+
+Index.prototype.initShelf = function(key) {
+  this.repository.getShelfByKey(key).then(shelf => {
+    // Detect differences between current shelf and shelf being returned
+    this.setShelf(shelf)
+  })
+}
+
+Index.prototype.addSubscription = function(key, callback) {
+  if (!this.store[key]) {
+    this.initShelf(key)
+  }
   this.emitter.addListener(key, callback)
 }
 
-Cabinet.prototype.removeSubscription = function(key, callback) {
+Index.prototype.removeSubscription = function(key, callback) {
   this.emitter.removeListener(key, callback)
+  if (this.emitter.listenerCount(key) === 0 && this.shelfEmitter.listenerCount(key) === 0) {
+    this.removeShelfCache(key)
+  }
 }
 
-Cabinet.prototype.SubscriptionCount = function(key) {
+Index.prototype.SubscriptionCount = function(key) {
   this.emitter.listenerCount(key)
 }
 
-Cabinet.prototype.addShelfSubscription = function(key, callback) {
+Index.prototype.addShelfSubscription = function(key, callback) {
+  if (!this.store[key]) {
+    this.initShelf(key)
+  }
   this.shelfEmitter.addListener(key, callback)
 }
 
-Cabinet.prototype.removeShelfSubscription = function(key, callback) {
+Index.prototype.removeShelfSubscription = function(key, callback) {
   this.shelfEmitter.removeListener(key, callback)
+  if (this.emitter.listenerCount(key) === 0 && this.shelfEmitter.listenerCount(key) === 0) {
+    this.removeShelfCache(key)
+  }
 }
 
-Cabinet.prototype.getShelfSubscriptionCount = function(key) {
+Index.prototype.getShelfSubscriptionCount = function(key) {
   this.shelfEmitter.listenerCount(key)
 }
 
-export default Cabinet
+export default Index
