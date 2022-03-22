@@ -25,33 +25,33 @@ Index.prototype.getKeys = async function() {
   return (await this.repository.getKeys())
 }
 
-Index.prototype.removeShelfCache = function(key) {
+Index.prototype.removeShelf = function(key) {
   delete this.store[key]
 }
 
-Index.prototype.removeShelf = async function(key) {
+Index.prototype.deleteShelf = async function(key) {
   delete this.store[key]
   await this.repository.removeShelf(key)
 }
 
 Index.prototype.getState = async function(key) {
-  return this.store[key]?.value || (await this.repository.getShelfByKey(key).value) || null
+  return this.store[key]?.value || (await this.repository.getShelfByKey(key).value) || createShelf().value
 }
 
-Index.prototype.setState = function (key, state) {
-  if (this.store[key]) {
-    const shelf = this.store[key]
+Index.prototype.getShelf = async function(key) {
+  return this.store[key] || (await this.repository.getShelfByKey(key)) || createShelf()
+}
+
+Index.prototype.setState = async function (key, state) {
+  let shelf = await this.getShelf(key)
+  if (shelf) {
     const localChanges = getLocalChanges(shelf.value, state, shelf.versions)
     const appliedOps = applyOps(shelf, localChanges)
     this.setShelf(key, appliedOps)
   } else {
-    const shelf = createShelf(state)
+    shelf = createShelf(state)
     this.setShelf(key, shelf)
   }
-}
-
-Index.prototype.getShelf = async function(key) {
-  return this.store[key] || (await this.repository.getShelfByKey(key)) || null
 }
 
 Index.prototype.setShelf = function(key, shelf) {
@@ -63,34 +63,36 @@ Index.prototype.setShelf = function(key, shelf) {
   this.shelfEmitter.emit(
     key,
     key,
-    this.store[key],
+    shelf,
   )
   if (this.emitter.listenerCount(key) > 0) {
     this.emitter.emit(
       key,
       key,
-      this.getState(key),
+      shelf.value,
     )
   }
 }
 
-Index.prototype.applyOp = function(key, op) {
-  if (this.store[key]) {
-    this.setShelf(key, applyOp(this.store[key], op))
-  }
+Index.prototype.applyOp = async function(key, op) {
+  let shelf = await this.getShelf(key)
+  this.setShelf(key, applyOp(shelf || createShelf(), op))
 }
 
-Index.prototype.applyOps = function(key, ops) {
-  if (this.store[key]) {
-    this.setShelf(key, applyOps(this.store[key], ops))
-  }
+Index.prototype.applyOps = async function(key, ops) {
+  console.log('_KEY_', key)
+  console.log('_OPS_', ops)
+  const shelf = await this.getShelf(key)
+  console.log('_CURRENT_SHELF_', shelf)
+  this.setShelf(key, applyOps(shelf || createShelf(), ops))
 }
 
-Index.prototype.initShelf = function(key) {
-  this.repository.getShelfByKey(key).then(shelf => {
-    // Detect differences between current shelf and shelf being returned
-    this.setShelf(shelf)
-  })
+Index.prototype.initShelf = async function(key) {
+  console.log('_INIT_SHELF_', key)
+  const shelf = await this.repository.getShelfByKey(key)
+  if (shelf) {
+    this.setShelf(key, shelf)
+  }
 }
 
 Index.prototype.addSubscription = function(key, callback) {
@@ -103,7 +105,7 @@ Index.prototype.addSubscription = function(key, callback) {
 Index.prototype.removeSubscription = function(key, callback) {
   this.emitter.removeListener(key, callback)
   if (this.emitter.listenerCount(key) === 0 && this.shelfEmitter.listenerCount(key) === 0) {
-    this.removeShelfCache(key)
+    this.removeShelf(key)
   }
 }
 
@@ -121,7 +123,7 @@ Index.prototype.addShelfSubscription = function(key, callback) {
 Index.prototype.removeShelfSubscription = function(key, callback) {
   this.shelfEmitter.removeListener(key, callback)
   if (this.emitter.listenerCount(key) === 0 && this.shelfEmitter.listenerCount(key) === 0) {
-    this.removeShelfCache(key)
+    this.removeShelf(key)
   }
 }
 

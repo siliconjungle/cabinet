@@ -10,14 +10,14 @@ const deepCopy = (data) => JSON.parse(JSON.stringify(data))
 const deepCopyReplaceValues = (data, replacement) => {
   return (
     isObj(data) ? [
-      Object.entries(data).reduce((p, [k, v]) => {
-        return ({
-          ...p,
-          [k]: isObj(v) ? [deepCopyReplaceValues(v, replacement), replacement] : replacement,
-        })
-      }, {}), replacement
-    ] :
-    replacement
+        Object.entries(data).reduce((p, [k, v]) => {
+          return ({
+            ...p,
+            [k]: isObj(v) ? [deepCopyReplaceValues(v, replacement), replacement] : replacement,
+          })
+        }, {}), replacement
+      ] :
+      replacement
   )
 }
 
@@ -151,20 +151,37 @@ export const createOp = {
 }
 
 // In order to handshake properly you need to store a uuid.
-export const createShelf = (value) => {
+export const createShelf = (value = null) => {
   const shelf = {
     value: null,
     versions: 0,
     history: [],
   }
-  const ops = getLocalChanges(shelf.value, value, 0)
-  return applyOps(shelf, ops)
+  if (value) {
+    const ops = getLocalChanges(shelf.value, value, 0)
+    return applyOps(shelf, ops)
+  }
+
+  return shelf
+}
+
+export const shouldPushOp = (shelf, op) => {
+  const historyContainsOp = shelf.history.some(patch =>
+    JSON.stringify(patch.key) === JSON.stringify(op.key) &&
+    patch.type === op.type &&
+    patch.value === op.value &&
+    JSON.stringify(patch.version) === JSON.stringify(op.version)
+  )
+  return !historyContainsOp
 }
 
 // Maybe I should mutate the state *shrugs*
 export const applyOp = (shelf, op) => {
   const shelfCopy = deepCopy(shelf)
-  shelfCopy.history.push(op)
+
+  if (shouldPushOp(shelfCopy, op)) {
+    shelfCopy.history.push(op)
+  }
 
   if (op.type === OPERATIONS.SET) {
     if (shouldApplySetOp(shelfCopy, op)) {
@@ -219,9 +236,12 @@ const createOpsFromData = (data, version = 1, key = [], ops = []) => {
 }
 
 export const getLocalChanges = (data, data2, versions, key = [], ops = []) => {
-  if (!data) {
+  if (data === undefined) {
     ops.push(...createOpsFromData(data2, 1, key))
     return ops
+  }
+  if (data === null) {
+    ops.push(...createOpsFromData(data2, getDeepVersionByKey(versions, key) + 1, key))
   }
   if (!(isObj(data) && isObj(data2))) {
     ops.push(
