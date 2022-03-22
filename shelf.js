@@ -165,26 +165,37 @@ export const createShelf = (value = null) => {
   return shelf
 }
 
-export const shouldPushOp = (shelf, op) => {
-  const historyContainsOp = shelf.history.some(patch =>
-    JSON.stringify(patch.key) === JSON.stringify(op.key) &&
-    patch.type === op.type &&
-    patch.value === op.value &&
-    JSON.stringify(patch.version) === JSON.stringify(op.version)
-  )
-  return !historyContainsOp
+// export const shouldPushOp = (shelf, op) => {
+//   const historyContainsOp = shelf.history.some(patch =>
+//     JSON.stringify(patch.key) === JSON.stringify(op.key) &&
+//     patch.type === op.type &&
+//     patch.value === op.value &&
+//     JSON.stringify(patch.version) === JSON.stringify(op.version)
+//   )
+//   return !historyContainsOp
+// }
+
+const addOpToHistory = (shelf, op) => {
+  const keyIndex = shelf.history.findIndex((patch) => JSON.stringify(patch.key) === JSON.stringify(op.key))
+  if (keyIndex === -1) {
+    shelf.history.push(op)
+  } else {
+    shelf.history[keyIndex] = op
+  }
 }
 
 // Maybe I should mutate the state *shrugs*
 export const applyOp = (shelf, op) => {
   const shelfCopy = deepCopy(shelf)
 
-  if (shouldPushOp(shelfCopy, op)) {
-    shelfCopy.history.push(op)
-  }
+  // This version keeps the history
+  // if (shouldPushOp(shelfCopy, op)) {
+  //   shelfCopy.history.push(op)
+  // }
 
   if (op.type === OPERATIONS.SET) {
     if (shouldApplySetOp(shelfCopy, op)) {
+      addOpToHistory(shelfCopy, op)
       applySetOp(shelfCopy, op)
     }
   }
