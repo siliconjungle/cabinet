@@ -1,10 +1,19 @@
 const store = {}
 
-const getKeys = async () => Object.keys(store)
+const getKeys = async (cabinet) => {
+  Object.keys(store[cabinet] || [])
+}
 
-const getShelfByKey = async key => store[key] || null
+const getShelfByKey = async (cabinet, key) => {
+  return store[cabinet]?.[key] || null
+}
 
-const setShelfByKey = async (key, shelf) => store[key] = shelf
+const setShelfByKey = async (cabinet, key, shelf) => {
+  if (store[cabinet] === undefined) {
+    store[cabinet] = {}
+  }
+  store[cabinet][key] = shelf
+}
 
 export default {
   getKeys,
