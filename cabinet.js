@@ -63,6 +63,7 @@ Cabinet.prototype.setShelf = function(key, shelf, ops) {
 
   this.emitter.emit(
     key,
+    this.name,
     key,
     shelf,
     ops,
