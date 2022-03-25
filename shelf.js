@@ -1,25 +1,40 @@
 const OPERATIONS = {
   SET: 'set',
+  INSERT: 'insert',
+  DELETE: 'delete',
 }
 
-const isObj = data =>
-  data && typeof data === 'object' && !Array.isArray(data)
+const SHELF_TYPES = {
+  OBJECT: 'object',
+  ARRAY: 'array',
+  STRING: 'string',
+  NUMBER: 'number',
+  BOOLEAN: 'boolean',
+  NULL: 'null',
+  OTHER: 'other',
+}
+
+export const SHELF_TYPE_RANKINGS = {
+  'object': 0,
+  'array': 1,
+  'string': 2,
+  'number': 3,
+  'boolean': 4,
+  'null': 5,
+  'other': 6,
+}
+
+export const getShelfTypeRanking = (value) => {
+  return SHELF_TYPE_RANKINGS[getShelfType(value)]
+}
+
+export const getShelfType = (value) => {
+  if (value === null) return SHELF_TYPES.NULL
+  if (Array.isArray(value)) return SHELF_TYPES.ARRAY
+  return Object.keys(SHELF_TYPE_RANKINGS).includes(typeof value) ? typeof(value) : SHELF_TYPES.OTHER
+}
 
 const deepCopy = (data) => JSON.parse(JSON.stringify(data))
-
-const deepCopyReplaceValues = (data, replacement) => {
-  return (
-    isObj(data) ? [
-        Object.entries(data).reduce((p, [k, v]) => {
-          return ({
-            ...p,
-            [k]: isObj(v) ? [deepCopyReplaceValues(v, replacement), replacement] : replacement,
-          })
-        }, {}), replacement
-      ] :
-      replacement
-  )
-}
 
 // Intentional usage of undefined over null as shelves use nulls to represent the data not existing.
 const getDeepValueByKey = (data, key) => {
@@ -31,7 +46,7 @@ const getDeepValueByKey = (data, key) => {
   }
   let layer = data
   for (let i = 0; i < key.length - 1; i++) {
-    layer = Array.isArray(layer) ? layer[0][key[i]]: layer[key[i]]
+    layer = layer[key[i]]
     if (layer === null || layer === undefined) {
       return undefined
     }
@@ -50,9 +65,10 @@ const getDeepVersionByKey = (versions, key) => {
   let layer = versions
   key.forEach((k) => {
     // Second value is the version, first is the object.
+    console.log('_LAYER_', layer)
     layer = Array.isArray(layer) ? layer[0][k]: layer[k]
   })
-  return Array.isArray(layer) ? layer[1] : layer
+  return Array.isArray(layer) ? layer[1] : layer || 0
 }
 
 const setDeepValueByKey = (data, key, value) => {
@@ -67,38 +83,31 @@ const setDeepValueByKey = (data, key, value) => {
   return data
 }
 
-const setDeepVersionByKey = (versions, key, version, isObj) => {
+const createVersionByType = (type, version) => {
+  if (type === SHELF_TYPES.OBJECT) {
+    return [{}, version]
+  } else if (type === SHELF_TYPES.ARRAY) {
+    return [[], version]
+  }
+  return version
+}
+
+const setDeepVersionByKey = (versions, key, version, type) => {
   if (key.length === 0) {
-    return isObj ? [{}, version] : version
+    return createVersionByType(type, version)
   }
   let layer = versions
   for (let i = 0; i < key.length - 1; i++) {
-    layer = Array.isArray(layer) ? layer[0][i] : layer[i]
+    layer = Array.isArray(layer) ? layer[0][key[i]] : layer[key[i]]
   }
 
   if (Array.isArray(layer)) {
-    layer[0][key[key.length - 1]] = isObj ? [{}, version] : version
+    layer[0][key[key.length - 1]] = createVersionByType(type, version)
   } else {
-    layer[key[key.length - 1]] = isObj ? [{}, version] : version
+    layer[key[key.length - 1]] = createVersionByType(type, version)
   }
 
   return versions
-}
-
-export const SHELF_TYPE_RANKINGS = {
-  'object': 0,
-  'array': 1,
-  'string': 2,
-  'number': 3,
-  'boolean': 4,
-  'null': 5,
-  'other': 6,
-}
-
-export const getShelfTypeRanking = (value) => {
-  if (value === null) return SHELF_TYPE_RANKINGS.null
-  if (Array.isArray(value)) return SHELF_TYPE_RANKINGS.array
-  return SHELF_TYPE_RANKINGS[typeof value] ?? SHELF_TYPE_RANKINGS.other
 }
 
 export const compareShelfValues = (value, value2) => {
@@ -124,7 +133,7 @@ export const compareShelfValues = (value, value2) => {
 }
 
 const applySetOp = (shelf, setOp) => {
-  shelf.versions = setDeepVersionByKey(shelf.versions, setOp.key, setOp.version, isObj(setOp.value))
+  shelf.versions = setDeepVersionByKey(shelf.versions, setOp.key, setOp.version, getShelfType(setOp.value))
   shelf.value = setDeepValueByKey(shelf.value, setOp.key, setOp.value)
 }
 
@@ -146,8 +155,30 @@ const shouldApplySetOp = (shelf, setOp) => {
   return false
 }
 
+// TODO
+const applyInsertOp = (shelf, insertOp) => {
+
+}
+
+// TODO
+const shouldApplyInsertOp = (shelf, insertOp) => {
+  return false
+}
+
+// TODO
+const applyDeleteOp = (shelf, deleteOp) => {
+
+}
+
+// TODO
+const shouldApplyDeleteOp = (shelf, deleteOp) => {
+  return false
+}
+
 export const createOp = {
   set: (key, value, version) => ({ key, type: OPERATIONS.SET, value, version }),
+  insert: (key, version, value, pos) => ({ key, type: OPERATIONS.INSERT, version, value, pos }),
+  delete: (key, version, amount, pos) => ({ key, type: OPERATIONS.DELETE, version, amount, pos }),
 }
 
 // In order to handshake properly you need to store a uuid.
@@ -198,6 +229,16 @@ export const applyOp = (shelf, op) => {
       addOpToHistory(shelfCopy, op)
       applySetOp(shelfCopy, op)
     }
+  } else if (op.type === OPERATIONS.INSERT) {
+    if (shouldApplyInsertOp(shelfCopy, op)) {
+      shelfCopy.history.push(op)
+      applyInsertOp(shelfCopy, op)
+    }
+  } else if (op.type === OPERATIONS.DELETE) {
+    if (shouldApplyDeleteOp(shelfCopy, op)) {
+      shelfCopy.history.push(op)
+      applyDeleteOp(shelfCopy, op)
+    }
   }
 
   return shelfCopy
@@ -212,7 +253,41 @@ export const applyOps = (shelf, ops) => {
 }
 
 const createOpsFromData = (data, version = 1, key = [], ops = []) => {
-  if (!isObj(data)) {
+  const shelfType = getShelfType(data)
+
+  if (shelfType === SHELF_TYPES.OBJECT) {
+    ops.push(
+      createOp.set(
+        key,
+        {},
+        version,
+      )
+    )
+
+    const keys = [
+      ...new Set(
+        [
+          ...Object.keys(data),
+        ]
+      )
+    ]
+
+    keys.forEach(k => {
+      createOpsFromData(data[k] ?? null, version, [...key, k], ops)
+    })
+  } else if (shelfType === SHELF_TYPES.ARRAY) {
+    ops.push(
+      createOp.set(
+        key,
+        [],
+        version,
+      )
+    )
+
+    data.forEach((element, i) => {
+      createOpsFromData(data[i] ?? null, version, [...key, i], ops)
+    })
+  } else {
     ops.push(
       createOp.set(
         key,
@@ -220,28 +295,7 @@ const createOpsFromData = (data, version = 1, key = [], ops = []) => {
         version,
       )
     )
-    return ops
   }
-
-  ops.push(
-    createOp.set(
-      key,
-      {},
-      version,
-    )
-  )
-
-  const keys = [
-    ...new Set(
-      [
-        ...Object.keys(data),
-      ]
-    )
-  ]
-
-  keys.forEach(k => {
-    createOpsFromData(data[k] ?? null, version, [...key, k], ops)
-  })
 
   return ops
 }
@@ -251,32 +305,71 @@ export const getLocalChanges = (data, data2, versions, key = [], ops = []) => {
     ops.push(...createOpsFromData(data2, 1, key))
     return ops
   }
+
+  const shelfType = getShelfType(data)
+  const shelfType2 = getShelfType(data2)
+
   if (data === null) {
     ops.push(...createOpsFromData(data2, getDeepVersionByKey(versions, key) + 1, key))
-  }
-  if (!(isObj(data) && isObj(data2))) {
-    ops.push(
-      createOp.set(
-        key,
-        data2,
-        getDeepVersionByKey(versions, key) + 1
-      )
-    )
     return ops
   }
 
-  const keys = [
-    ...new Set(
-      [
-        ...Object.keys(data),
-        ...Object.keys(data2),
-      ]
+  if (shelfType === SHELF_TYPES.OBJECT && shelfType2 === SHELF_TYPES.OBJECT) {
+    const keys = [
+      ...new Set(
+        [
+          ...Object.keys(data),
+          ...Object.keys(data2),
+        ]
+      )
+    ]
+
+    keys.forEach(k => {
+      getLocalChanges(data[k] ?? null, data2[k] ?? null, versions, [...key, k], ops)
+    })
+
+    return ops
+  } else if (shelfType === SHELF_TYPES.ARRAY && shelfType2 === SHELF_TYPES.ARRAY) {
+    const maxLength = Math.max(data.length, data2.length)
+
+    for (let i = 0; i < maxLength; i++) {
+      getLocalChanges(data[i] ?? null, data2[i] ?? null, versions, [...key, i], ops)
+    }
+
+    return ops
+  }
+  ops.push(
+    createOp.set(
+      key,
+      data2,
+      getDeepVersionByKey(versions, key) + 1
     )
-  ]
-
-  keys.forEach(k => {
-    getLocalChanges(data[k] ?? null, data2[k] ?? null, versions, [...key, k], ops)
-  })
-
+  )
   return ops
 }
+
+// const shelf = createShelf({
+//   position: { x: 5, y: 7 },
+//   title: 'Lava world',
+//   tags: ['lava', 'hard'],
+// })
+//
+// console.log('_SHELF_', JSON.stringify(shelf, null, 2))
+// const localChanges = getLocalChanges(shelf.value, {
+//   // map: [],
+//   title: 'Lava world 2',
+//   tags: ['lava'],
+//   entities: [
+//     {
+//       position: {
+//         x: 5,
+//         y: 7,
+//       },
+//     },
+//   ],
+// }, shelf.versions)
+//
+// console.log('_LOCAL_CHANGES_', localChanges)
+//
+// const modifiedShelf = applyOps(shelf, localChanges)
+// console.log('_MODIFIED_SHELF_', JSON.stringify(modifiedShelf, null, 2))
