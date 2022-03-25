@@ -5,7 +5,7 @@ function Space (repository) {
   this.cabinets = {}
 }
 
-Space.prototype.getCabinet = name => {
+Space.prototype.getCabinet = function (name) {
   if (this.cabinets[name] === undefined) {
     this.cabinets[name] = new Cabinet(this.repository, name)
   }
