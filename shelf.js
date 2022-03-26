@@ -65,7 +65,6 @@ const getDeepVersionByKey = (versions, key) => {
   let layer = versions
   key.forEach((k) => {
     // Second value is the version, first is the object.
-    console.log('_LAYER_', layer)
     layer = Array.isArray(layer) ? layer[0][k]: layer[k]
   })
   return Array.isArray(layer) ? layer[1] : layer || 0
