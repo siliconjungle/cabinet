@@ -101,7 +101,8 @@ Cabinet.prototype.removeSubscription = function(key, callback) {
   }
 }
 
-Cabinet.prototype.SubscriptionCount = function(key) {
+// This is a typo.
+Cabinet.prototype.getSubscriptionCount = function(key) {
   this.emitter.listenerCount(key)
 }
 
