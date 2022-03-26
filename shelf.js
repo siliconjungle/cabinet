@@ -300,6 +300,9 @@ const createOpsFromData = (data, version = 1, key = [], ops = []) => {
 }
 
 export const getLocalChanges = (data, data2, versions, key = [], ops = []) => {
+  if (JSON.stringify(data) === JSON.stringify(data2)) {
+    return ops
+  }
   if (data === undefined) {
     ops.push(...createOpsFromData(data2, 1, key))
     return ops
@@ -347,6 +350,25 @@ export const getLocalChanges = (data, data2, versions, key = [], ops = []) => {
   return ops
 }
 
+// const shelf = createShelf({
+//   map: [
+//     [0, 0, 0],
+//     [0, 0, 0],
+//     [0, 0, 0],
+//   ],
+// })
+//
+// const localChanges = getLocalChanges(shelf.value, {
+//   map: [
+//     [1, 0, 0],
+//     [0, 0, 0],
+//     [0, 0, 0],
+//   ],
+// }, shelf.versions)
+
+// console.log('_LOCAL_CHANGES_', localChanges)
+// const modifiedShelf = applyOps(shelf, localChanges)
+// console.log('_MODIFIED_SHELF_', modifiedShelf)
 // const shelf = createShelf({
 //   position: { x: 5, y: 7 },
 //   title: 'Lava world',
