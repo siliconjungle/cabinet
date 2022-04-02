@@ -1,17 +1,19 @@
 {
   "name": "@silicon-jungle/cabinet",
   "type": "module",
-  "version": "2.4.6",
+  "version": "2.4.7",
   "description": "A key value store & subscriptions wrapping a json blob crdt (shelf).",
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "start": "node shelf.js"
+    "start": "node list-crdt.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "events": "^3.3.0",
+    "ot-text-unicode": "^4.0.0",
+    "unicount": "^1.2.0",
     "uuid": "^8.3.2"
   },
   "repository": {

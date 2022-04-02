@@ -117,6 +117,7 @@ export const compareShelfValues = (value, value2) => {
   if (ranking > ranking2) return -1
   if (ranking === SHELF_TYPE_RANKINGS.object) return 0
   // This will be replaced when a better implementation of arrays is added.
+  // This should likely be moved up to return 0.
   if (ranking === SHELF_TYPE_RANKINGS.array || ranking === SHELF_TYPE_RANKINGS.other) {
     const jsonValue = JSON.stringify(value)
     const jsonValue2 = JSON.stringify(value2)
@@ -177,7 +178,7 @@ const shouldApplyDeleteOp = (shelf, deleteOp) => {
 export const createOp = {
   set: (key, value, version) => ({ key, type: OPERATIONS.SET, value, version }),
   insert: (key, version, value, pos) => ({ key, type: OPERATIONS.INSERT, version, value, pos }),
-  delete: (key, version, amount, pos) => ({ key, type: OPERATIONS.DELETE, version, amount, pos }),
+  // delete: (key, version, amount, pos) => ({ key, type: OPERATIONS.DELETE, version, amount, pos }),
 }
 
 // In order to handshake properly you need to store a uuid.
@@ -286,7 +287,9 @@ const createOpsFromData = (data, version = 1, key = [], ops = []) => {
     data.forEach((element, i) => {
       createOpsFromData(data[i] ?? null, version, [...key, i], ops)
     })
-  } else {
+  } /* else if (shelfType === SHELF_TYPES.STRING) {
+
+  } */ else {
     ops.push(
       createOp.set(
         key,
@@ -339,7 +342,9 @@ export const getLocalChanges = (data, data2, versions, key = [], ops = []) => {
     }
 
     return ops
-  }
+  } /* else if (shelfType === SHELF_TYPES.STRING && shelfType2 === SHELF_TYPES.STRING) {
+
+  } */
   ops.push(
     createOp.set(
       key,
@@ -351,11 +356,11 @@ export const getLocalChanges = (data, data2, versions, key = [], ops = []) => {
 }
 
 // const shelf = createShelf({
-//   map: [
-//     [0, 0, 0],
-//     [0, 0, 0],
-//     [0, 0, 0],
-//   ],
+//   // map: [
+//   //   [0, 0, 0],
+//   //   [0, 0, 0],
+//   //   [0, 0, 0],
+//   // ],
 // })
 //
 // const localChanges = getLocalChanges(shelf.value, {
@@ -365,7 +370,7 @@ export const getLocalChanges = (data, data2, versions, key = [], ops = []) => {
 //     [0, 0, 0],
 //   ],
 // }, shelf.versions)
-
+//
 // console.log('_LOCAL_CHANGES_', localChanges)
 // const modifiedShelf = applyOps(shelf, localChanges)
 // console.log('_MODIFIED_SHELF_', modifiedShelf)
