@@ -6,12 +6,12 @@ const lefts = {}
 const positions = {}
 let finalValue = []
 
-const deepCopy = value => JSON.parse(JSON.stringify(value))
-
 const history = []
 const userOrder = {}
 const receivedSequences = {}
 const order = []
+
+const deepCopy = value => JSON.parse(JSON.stringify(value))
 
 const getDepth = (order, key) => {
   for (let i = 0; i < order.length; i++) {
@@ -37,6 +37,61 @@ const getPosition = (order, key) => {
   return -1
 }
 
+const getLayerInsertIndex = (positions, layer, key, pos) => {
+  let insertIndex = 0
+
+  for (let element in layer) {
+    const currentPosition = positions[element]
+    if (pos > currentPosition) {
+      break
+    }
+    if (pos === currentPosition && key < element) {
+      break
+    }
+    insertIndex++
+  }
+  return insertIndex
+}
+
+const insertInOrder = (key, parents, pos, userOrder, order) => {
+  const insertDepth = parents.reduce(
+    (previousValue, currentValue) => Math.max(previousValue, getDepth(order, currentValue)),
+    -1
+  ) + 1
+  order[insertDepth] = order[insertDepth] || []
+
+  const insertIndex = getLayerInsertIndex(
+    positions,
+    userOrder[insertDepth],
+    key,
+    pos,
+  )
+
+  order[insertDepth].splice(insertIndex, 0, key)
+}
+
+const getInsertRangesFromLatest = (receivedSequences, userId, latest) => {
+  const insertRanges = []
+  receivedSequences[userId] = receivedSequences[userId] || {}
+  latest.forEach(l => {
+    if (l.id !== -1) {
+      for (let i = 0; i < l.seq - receivedSequences[userId][l.id]; i++) {
+        insertRanges.push(`${l.id}:${l.seq + i + 1}`)
+      }
+    }
+  })
+  return insertRanges
+}
+
+const updateReceivedSequencesFromLatest = (receivedSequences, userId, latest) => {
+  receivedSequences[userId] = receivedSequences[userId] || {}
+  latest.forEach(l => {
+    if (l.id !== -1) {
+      receivedSequences[userId][l.id] = l.seq
+    }
+  })
+}
+
 const insert = (user, value, pos, latest) => {
   const parentKeys = latest.map(l => `${l.id}:${l.seq}`)
 
@@ -52,45 +107,15 @@ const insert = (user, value, pos, latest) => {
   versions[key] = 1
   parents[key] = deepCopy(latest)
 
-  const insertRanges = []
-  receivedSequences[user.id] = receivedSequences[user.id] || {}
-  latest.forEach(l => {
-    if (l.id !== -1) {
-      for (let i = 0; i < l.seq - receivedSequences[user.id][l.id]; i++) {
-        insertRanges.push(`${l.id}:${l.seq + i + 1}`)
-      }
-      receivedSequences[user.id][l.id] = l.seq
-    }
-  })
+  const insertRanges = getInsertRangesFromLatest(receivedSequences, user.id, latest)
+  updateReceivedSequencesFromLatest(receivedSequences, user.id, latest)
 
   userOrder[user.id] = userOrder[user.id] || []
 
   const insertParents = insertRanges.map(ins => parents[ins])
 
   for (let i = 0; i < insertRanges.length; i++) {
-    // Get the max depth of the parents for each element in insertRanges
-    const insDepth = insertParents[i].reduce(
-      (previousValue, currentValue) => Math.max(previousValue, getDepth(userOrder[user.id], currentValue)),
-      -1
-    ) + 1
-    userOrder[user.id][insDepth] = userOrder[user.id][insDepth] || []
-
-    let insertIndex = 0
-
-    for (let element in userOrder[user.id][insDepth]) {
-      const currentPosition = positions[element]
-      // Get the pos of this element
-      const insertPos = positions[insertRanges[i]]
-      if (insertPos > currentPosition) {
-        break
-      }
-      if (insertPos === currentPosition && insertRanges[i] < element) {
-        break
-      }
-      insertIndex++
-    }
-
-    userOrder[user.id][insDepth].splice(insertIndex, 0, insertRanges[i])
+    insertInOrder(insertRanges[i], insertParents[i], positions[insertRanges[i]], userOrder[user.id], userOrder[user.id])
   }
 
   // Find id to insert to the left of by constructing string
@@ -100,52 +125,12 @@ const insert = (user, value, pos, latest) => {
   })
 
   receivedSequences[user.id][user.id] = user.seq
-  insertRanges.push(key)
-  const insDepth = parentKeys.reduce(
-    (previousValue, currentValue) => Math.max(previousValue, getDepth(userOrder[user.id], currentValue)),
-    -1
-  ) + 1
-  userOrder[user.id][insDepth] = userOrder[user.id][insDepth] || []
 
-  let insertIndex = 0
-
-  for (let element in userOrder[user.id][insDepth]) {
-    const currentPosition = positions[element]
-    // Get the pos of this element
-    if (pos > currentPosition) {
-      break
-    }
-    if (pos === currentPosition && key < element) {
-      break
-    }
-    insertIndex++
-  }
-  userOrder[user.id][insDepth].splice(insertIndex, 0, key)
+  insertInOrder(key, parentKeys, pos, userOrder[user.id], userOrder[user.id])
 
   lefts[key] = list[positions[key] - 1] || '-1:-1'
 
-  const insertDepth = parentKeys.reduce(
-    (previousValue, currentValue) => Math.max(previousValue, getDepth(order, currentValue)),
-    -1
-  ) + 1
-  order[insertDepth] = order[insertDepth] || []
-
-  insertIndex = 0
-  const insLeft = lefts[key]
-  const insPos = getPosition(order, insLeft)
-
-  for (let element in order[insertDepth]) {
-    const currentLeft = lefts[element]
-    const currentPosition = getPosition(order, currentLeft)
-    if (insPos > currentPosition) {
-      break
-    }
-    if (insPos === currentPosition && key < element) {
-      break
-    }
-    insertIndex++
-  }
-  order[insertDepth].splice(insertIndex, 0, key)
+  insertInOrder(key, parentKeys, getPosition(order, lefts[key]), userOrder[user.id], order)
 
   const finalList = []
   order.flat().forEach(element => {
