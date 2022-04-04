@@ -187,6 +187,7 @@ export const createShelf = (value = null) => {
     value: null,
     versions: 0,
     history: [],
+
   }
   if (value) {
     const ops = getLocalChanges(shelf.value, value, 0)
