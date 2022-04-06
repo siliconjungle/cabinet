@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "start": "node list-crdt.js"
+    "start": "node push-sequencer.js"
   },
   "author": "",
   "license": "ISC",

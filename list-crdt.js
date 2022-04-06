@@ -236,11 +236,11 @@ const replace = (userId, value, pos, latest, version) => {
   history.push(createOp.set(userId, value, pos, deepCopy(latest), version))
 }
 
-const user = { id: 0, seq: 0 }
-const latest = { id: -1, seq: -1 }
-
-const user2 = { id: 1, seq: 0 }
-const latest2 = { id: -1, seq: -1 }
+// const user = { id: 0, seq: 0 }
+// const latest = { id: -1, seq: -1 }
+//
+// const user2 = { id: 1, seq: 0 }
+// const latest2 = { id: -1, seq: -1 }
 
 // insert(user, 'x', 0, [latest])
 // user.seq = 1
@@ -263,33 +263,33 @@ const latest2 = { id: -1, seq: -1 }
 // latest2.seq = 0
 // insert(user2, 'b', 2, [latest2])
 
-insert(user, { text: 'Hello world' }, 0, [latest])
-latest.id = 0
-latest.seq = 0
-user.seq++
-insert(user, { text: 'Second post' }, 1, [latest])
-latest.seq = 1
-user.seq++
-insert(user, { text: 'Third post' }, 2, [latest])
-latest.seq = 2
-user.seq++
-insert(user, { text: 'Fourth post' }, 3, [latest])
-latest.seq = 3
-latest2.id = 0
-latest2.seq = 3
-user.seq++
-insert(user2, { text: 'Test' }, 0, [latest2])
-latest.id = 1
-latest.seq = 0
-user2.seq++
-insert(user, { text: 'Fifth post' }, 2, [latest, { id: 1, seq: 0 }])
-latest.id = 0
-latest.seq = 4
-user.seq++
-// replace(user.id, { text: 'Hello world2' }, 0, [latest], 2)
-
-console.log('_ORDER_', order)
-console.log('_FINAL_VALUE_', finalValue)
+// insert(user, { text: 'Hello world' }, 0, [latest])
+// latest.id = 0
+// latest.seq = 0
+// user.seq++
+// insert(user, { text: 'Second post' }, 1, [latest])
+// latest.seq = 1
+// user.seq++
+// insert(user, { text: 'Third post' }, 2, [latest])
+// latest.seq = 2
+// user.seq++
+// insert(user, { text: 'Fourth post' }, 3, [latest])
+// latest.seq = 3
+// latest2.id = 0
+// latest2.seq = 3
+// user.seq++
+// insert(user2, { text: 'Test' }, 0, [latest2])
+// latest.id = 1
+// latest.seq = 0
+// user2.seq++
+// insert(user, { text: 'Fifth post' }, 2, [latest, { id: 1, seq: 0 }])
+// latest.id = 0
+// latest.seq = 4
+// user.seq++
+// // replace(user.id, { text: 'Hello world2' }, 0, [latest], 2)
+//
+// console.log('_ORDER_', order)
+// console.log('_FINAL_VALUE_', finalValue)
 // console.log('_HISTORY_', history)
 // console.log('_VALUES_', values)
 // console.log('_PARENTS_', parents)
