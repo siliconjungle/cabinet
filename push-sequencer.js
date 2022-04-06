@@ -38,7 +38,9 @@ export const setSequencerValue = (sequencer, userId, value, sequence, version) =
   const { values, versions, sequences, userIds } = sequencer
   const index = sequences.findIndex((s, i) => s === sequence && userIds[i] === userId)
   if (index !== -1) {
-    values[index] = value
-    versions[index] = version
+    if (version > versions[index] || (version === versions[index] && JSON.stringify(value) < JSON.stringify(values[index]))) {
+      values[index] = value
+      versions[index] = version
+    }
   }
 }

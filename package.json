@@ -1,7 +1,7 @@
 {
   "name": "@silicon-jungle/cabinet",
   "type": "module",
-  "version": "2.4.8",
+  "version": "2.4.9",
   "description": "A key value store & subscriptions wrapping a json blob crdt (shelf).",
   "main": "index.js",
   "scripts": {
