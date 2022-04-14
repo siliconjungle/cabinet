@@ -8,6 +8,9 @@ import {
 
 // Repository on the client would be a wrapper around local storage
 // On the server it would be hooking into a database.
+// This needs to be able to pull in a type definition
+// To begin with, lets start with strict definitions.
+// In the future we can allow for types that are like "this, or this, or this".
 function Cabinet (repository, name) {
   this.emitter = new EventEmitter()
   this.emitter.setMaxListeners(0)
@@ -101,7 +104,6 @@ Cabinet.prototype.removeSubscription = function(key, callback) {
   }
 }
 
-// This is a typo.
 Cabinet.prototype.getSubscriptionCount = function(key) {
   this.emitter.listenerCount(key)
 }
